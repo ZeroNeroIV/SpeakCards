@@ -1,0 +1,35 @@
+name: speakcards
+description: Voice-powered Spanish flashcards. LAYA-only, 100% on-device.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # On-device LLM (LAYA). Audio input on .litertlm Gemma 3n E2B; text fallback on 270M.
+  flutter_gemma: ^1.8.2
+  drift: ^2.35.0
+  sqlite3: ^3.0.0
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  record: ^7.1.1
+  just_audio: ^0.9.42
+  device_info_plus: ^10.1.2
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  drift_dev: ^2.35.0
+  build_runner: ^2.4.9
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/content/cards_es_en.json
+    - assets/audio/es/

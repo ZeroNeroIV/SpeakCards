@@ -1,0 +1,70 @@
+name: Build and release APK as LATEST
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Generate drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build release APK (debug-signed)
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      - name: Publish LATEST release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          ls -lh "$APK"
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          git tag -f LATEST "$GITHUB_SHA"
+          git push -f origin LATEST
+          gh release delete LATEST --yes || true
+          gh release create LATEST "$APK" \
+            --title "LATEST ($SHA_SHORT)" \
+            --notes "Auto-built from commit $GITHUB_SHA on $(date -u +%Y-%m-%dT%H:%M:%SZ). Debug-signed release APK." \
+            --latest

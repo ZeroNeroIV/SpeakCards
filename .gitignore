@@ -1,0 +1,25 @@
+# Dart / Flutter
+.dart_tool/
+.build/
+build/
+*.g.dart
+*.freezed.dart
+pubspec.lock
+
+# IDE / local tooling (never commit)
+.idea/
+.metadata
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+android/.kotlin/
+
+# Logs
+*.log
+
+# Models (large, downloaded on-device on first run)
+/models/
+
+# Local DB / recordings
+*.sqlite
+*.wav
