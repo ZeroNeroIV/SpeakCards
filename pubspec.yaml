@@ -17,9 +17,9 @@ dependencies:
   path_provider: ^2.1.4
   path: ^1.9.0
   record: ^7.1.1
-  just_audio: ^0.9.42
   device_info_plus: ^10.1.2
   json_annotation: ^4.9.0
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:
@@ -32,4 +32,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/content/cards_es_en.json
-    - assets/audio/es/
+    - assets/content/es_dict.json

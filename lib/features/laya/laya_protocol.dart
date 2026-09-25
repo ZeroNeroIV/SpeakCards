@@ -16,11 +16,13 @@ b/v merge, soft d cada, 5 pure vowels, stress papa vs papá.
     required String targetSound,
     required List<int> history,
     Map<String, dynamic>? dsp,
+    String? ipa,
   }) {
     final h = history.isEmpty ? 'none' : history.join(',');
     final d = dsp == null ? 'audio attached (Path A)' : dsp.toString();
+    final canon = ipa == null ? '' : '"canonical":"$ipa",';
     return '''
-{"state":{"card":"$expected","target_sound":"$targetSound",
+{"state":{"card":"$expected",$canon"target_sound":"$targetSound",
 "history_scores":"$h","measurement":"$d"},
 "questions":{"next_action":{"type":"choice","criteria":{
 "repeat_word":"single-word card <70 or target weak",

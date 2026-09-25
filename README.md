@@ -14,16 +14,12 @@ flutter test
 flutter run
 ```
 
-## Reference audio
+## Pronunciation reference
 
-`assets/audio/es/` ships a native reference recording for every card
-(16kHz mono WAV, Latin American Spanish voice). The app compares your
-attempt against the reference on-device. To regenerate them:
-
-```powershell
-pip install edge-tts
-python tool/gen_reference_audio.py
-```
+No audio files: the app ships `assets/content/es_dict.json` (canonical
+pronunciation + syllables for every word) and speaks references with your
+device's native Spanish voice. Scoring measures your live audio against
+dictionary timing, on-device.
 
 ## Models (download once on WiFi, stored on-device)
 

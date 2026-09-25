@@ -1,23 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:just_audio/just_audio.dart';
 
 import '../../data/db.dart';
 import '../cards/card_model.dart';
+import '../dictionary/dictionary_service.dart';
 import '../laya/laya_client.dart';
 import '../scoring/dsp_scorer.dart';
 import '../srs/drill_service.dart';
 import '../srs/srs_service.dart';
+import '../voice/reference_voice_service.dart';
 import 'recorder_service.dart';
 
-/// Main loop: show card → listen → live mic stream → score in-RAM PCM →
-/// LAYA next action → save. No WAV files touch the disk for attempts;
-/// bundled reference WAVs stay in assets for Listen + reference scoring.
+/// Main loop: show card → native voice reference → live mic stream →
+/// score in-RAM PCM against dictionary timing → LAYA next action → save.
+/// No audio files anywhere: references come from the bundled pronunciation
+/// dictionary (display + timing) and the OS voice (playback).
 class PracticeScreen extends StatefulWidget {
   const PracticeScreen({super.key});
   @override
@@ -27,7 +27,8 @@ class PracticeScreen extends StatefulWidget {
 class _PracticeScreenState extends State<PracticeScreen> {
   final _cards = CardRepository();
   final _rec = RecorderService();
-  final _player = AudioPlayer();
+  final _voice = ReferenceVoiceService();
+  final _dict = DictionaryService();
   final _laya = LayaClient();
   late final AppDb _db;
   late final SrsService _srs;
@@ -41,6 +42,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   DateTime? _liveStart;
   StreamSubscription<double>? _levelSub;
   String _status = 'Loading…';
+  String _ipa = '';
   LayaResult? _last;
 
   @override
@@ -59,6 +61,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _db = AppDb();
     _srs = SrsService(_db);
     await _laya.init();
+    await _voice.init();
     try {
       final all = await _cards.loadAll();
       for (final c in all) {
@@ -67,7 +70,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
             id: drift.Value(c.id),
             es: drift.Value(c.es),
             en: drift.Value(c.en),
-            audioPath: drift.Value(c.audioPath),
             targetSound: drift.Value(c.targetSound),
             difficulty: drift.Value(c.difficulty),
           ),
@@ -93,6 +95,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
           _status = 'All caught up — reviewing all';
         }
       });
+      await _refreshIpa();
     } catch (e) {
       if (!mounted) return;
       setState(() => _status = 'Startup failed: $e');
@@ -101,16 +104,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   CardModel? get _card => _deck.isEmpty ? null : _deck[_i % _deck.length];
 
+  Future<void> _refreshIpa() async {
+    final c = _card;
+    if (c == null) return;
+    final ipa = await _dict.transcription(c.es);
+    if (!mounted) return;
+    setState(() => _ipa = ipa);
+  }
+
   Future<void> _listen() async {
     final c = _card;
     if (c == null) return;
-    try {
-      await _player.setAsset(c.audioPath);
-      await _player.play();
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _status = 'Reference audio missing: ${c.audioPath}');
-    }
+    await _voice.speak(c.es);
   }
 
   void _startLiveTimer() {
@@ -180,33 +185,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (c == null) return;
     if (take.pcmBytes.isEmpty) throw StateError('Recording too short');
 
-    // Live PCM straight from RAM — no file read, no WAV strip.
+    // Live PCM straight from RAM + dictionary timing — no audio files.
     final learnerPcm = take.pcmFloat;
-    final wavBytes = take.wavBytes;
-
-    Float32List? refPcm;
-    try {
-      final refData = await rootBundle.load(c.audioPath);
-      final refBytes = refData.buffer.asUint8List();
-      refPcm = AudioPrep.toFloat32(AudioPrep.pcm16FromWav(refBytes));
-    } catch (_) {
-      refPcm = null;
-    }
-
-    final expectedSecs = DspScorer.expectedSecsFor(c.es);
-    final DspResult dsp;
-    if (refPcm != null && refPcm.length >= 8000) {
-      dsp = DspScorer.score(
-        learner: learnerPcm,
-        reference: refPcm,
-        expectedSecs: expectedSecs,
-      );
-    } else {
-      dsp = DspScorer.scoreNoReference(
-        learner: learnerPcm,
-        expectedSecs: expectedSecs,
-      );
-    }
+    final expectedSecs = await _dict.expectedSecs(c.es);
+    final ipa = await _dict.transcription(c.es);
+    final dsp = DspScorer.scoreNoReference(
+      learner: learnerPcm,
+      expectedSecs: expectedSecs,
+    );
 
     final recent = await _db.recentAttempts(c.id, limit: 3);
     final history = recent.reversed.map((a) => a.overall).toList();
@@ -215,8 +201,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
       expected: c.es,
       targetSound: c.targetSound,
       history: history,
-      learnerWav: wavBytes,
+      learnerWav: take.wavBytes,
       dsp: dsp,
+      referenceIpa: ipa,
     );
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -252,7 +239,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _levelSub?.cancel();
     _liveTimer?.cancel();
     _rec.dispose();
-    _player.dispose();
+    _voice.dispose();
     _db.close();
     super.dispose();
   }
@@ -368,6 +355,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
                                     color: colors.onSurfaceVariant,
                                   ),
                         ),
+                        if (_ipa.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '/$_ipa/',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: colors.primary,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         _pill(context, '${c.targetSound} · $tip',
                             highlight: true,),
@@ -462,7 +463,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
                               style: TextStyle(color: colors.error),
                             ),
                           ],
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Scored live from your audio + dictionary guide.',
+                            style: TextStyle(fontStyle: FontStyle.italic),
+                          ),
+                          const SizedBox(height: 4),
                           Text(
                             '${d.feedbackEn}\n${d.feedbackEs}',
                             textAlign: TextAlign.center,
@@ -471,7 +477,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () => setState(() => _i++),
+                              onPressed: () {
+                                setState(() => _i++);
+                                _refreshIpa();
+                              },
                               style: ElevatedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(999),

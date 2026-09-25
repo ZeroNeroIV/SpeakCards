@@ -23,4 +23,3 @@ android/.kotlin/
 # Local DB / recordings
 *.sqlite
 *.wav
-!assets/audio/es/*.wav

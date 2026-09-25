@@ -1,11 +1,12 @@
 import 'package:drift/drift.dart';
 
 /// Cards mirror the bundled JSON so SRS state can join locally.
+/// Pronunciation comes from the bundled dictionary; the native OS voice
+/// speaks references — no audio files.
 class Cards extends Table {
   TextColumn get id => text()();
   TextColumn get es => text()();
   TextColumn get en => text()();
-  TextColumn get audioPath => text()();
   TextColumn get targetSound => text()();
   IntColumn get difficulty => integer().withDefault(const Constant(1))();
 

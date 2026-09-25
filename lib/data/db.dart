@@ -15,7 +15,20 @@ class AppDb extends _$AppDb {
   AppDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            // v2 drops Cards.audioPath (dictionary + native voice replace
+            // reference WAVs). Cards mirror bundled JSON and are reseeded
+            // every boot; attempts/SRS rows rejoin by card id.
+            await m.deleteTable('cards');
+            await m.createTable(cards);
+          }
+        },
+      );
 
   Future<void> upsertCard(CardsCompanion c) =>
       into(cards).insertOnConflictUpdate(c);

@@ -45,6 +45,7 @@ class LayaClient {
     Uint8List? learnerWav, // whole WAV, header included (Path A)
     DspResult? dsp,
     int? dspOverall,
+    String? referenceIpa, // canonical transcription from bundled dictionary
   }) async {
     if (learnerWav != null && audioModelReady) {
       try {
@@ -53,7 +54,8 @@ class LayaClient {
             LayaPrompts.userText(
                 expected: expected,
                 targetSound: targetSound,
-                history: history,),
+                history: history,
+                ipa: referenceIpa,),
             learnerWav,
             expected,
           ),
@@ -70,7 +72,8 @@ class LayaClient {
                 expected: expected,
                 targetSound: targetSound,
                 history: history,
-                dsp: dsp.toJson(),),
+                dsp: dsp.toJson(),
+                ipa: referenceIpa,),
             expected,
           ),
           LayaPath.textModel,

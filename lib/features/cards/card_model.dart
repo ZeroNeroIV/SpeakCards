@@ -2,13 +2,12 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 
 /// Flashcard model. `targetSound` tags the Spanish sound this card drills
-/// (rr, r, j, ll, ny, b_v, d, vowels, stress). No phoneme detection is
-/// claimed — LAYA reasons from this tag + history, not from neural phonemes.
+/// (rr, r, j, ll, ny, b_v, d, vowels, stress). Canonical pronunciation
+/// comes from the bundled dictionary; the OS voice speaks references.
 class CardModel {
   final String id;
   final String es;
   final String en;
-  final String audioPath;
   final String targetSound;
   final int difficulty;
 
@@ -16,7 +15,6 @@ class CardModel {
     required this.id,
     required this.es,
     required this.en,
-    required this.audioPath,
     required this.targetSound,
     required this.difficulty,
   });
@@ -25,7 +23,6 @@ class CardModel {
         id: j['id'] as String,
         es: j['es'] as String,
         en: j['en'] as String,
-        audioPath: j['audio_path'] as String,
         targetSound: j['target_sound'] as String,
         difficulty: (j['difficulty'] as num).toInt(),
       );
