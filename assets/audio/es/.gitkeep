@@ -1,0 +1,4 @@
+# Keeps assets/audio/es/ in git (git ignores empty dirs).
+# Human reference WAVs (16kHz mono) go here, matching audio_path in
+# assets/content/cards_es_en.json. The app scores live from the mic when
+# no reference WAV is bundled.
