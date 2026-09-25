@@ -1,7 +1,8 @@
-"""Bump patch + build number in pubspec.yaml. Prints the new version.
+"""Bump patch in pubspec.yaml (plain semver). Prints the new version.
 
 Usage: python3 tool/bump_patch.py
-Turns `version: 0.1.0+1` into `version: 0.1.1+2`.
+Turns `version: 0.1.1` into `version: 0.1.2`
+(also accepts legacy `0.1.1+2` and drops the build number).
 """
 
 import re
@@ -14,12 +15,12 @@ def main() -> None:
     with open(PUBSPEC) as f:
         content = f.read()
     match = re.search(
-        r"^version:\s*(\d+)\.(\d+)\.(\d+)\+(\d+)\s*$", content, re.M
+        r"^version:\s*(\d+)\.(\d+)\.(\d+)(?:\+\d+)?\s*$", content, re.M
     )
     if not match:
         sys.exit("version line not found in pubspec.yaml")
-    major, minor, patch, code = map(int, match.groups())
-    new_version = f"{major}.{minor}.{patch + 1}+{code + 1}"
+    major, minor, patch = map(int, match.groups())
+    new_version = f"{major}.{minor}.{patch + 1}"
     content = (
         content[: match.start()]
         + f"version: {new_version}\n"

@@ -16,9 +16,8 @@ import '../srs/srs_service.dart';
 import 'recorder_service.dart';
 
 /// Main loop: show card → listen → live mic stream → score in-RAM PCM →
-/// LAYA next action → save. No WAV files: mic PCM never touches disk.
-/// Honest labels: "match vs reference (this device)" or
-/// "from your audio alone" when no reference WAV is bundled.
+/// LAYA next action → save. No WAV files touch the disk for attempts;
+/// bundled reference WAVs stay in assets for Listen + reference scoring.
 class PracticeScreen extends StatefulWidget {
   const PracticeScreen({super.key});
   @override
@@ -258,116 +257,248 @@ class _PracticeScreenState extends State<PracticeScreen> {
     super.dispose();
   }
 
+  String _scoreLabel(int overall) {
+    if (overall >= 85) return 'Excellent';
+    if (overall >= 70) return 'Good match';
+    if (overall >= 50) return 'Keep practicing';
+    return 'Try again';
+  }
+
+  Widget _roundButton({
+    required double size,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    Color? background,
+    Color? foreground,
+  }) {
+    return SizedBox.square(
+      dimension: size,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          shape: const CircleBorder(),
+          padding: EdgeInsets.zero,
+          backgroundColor: background,
+          foregroundColor: foreground,
+          elevation: 2,
+        ),
+        child: Icon(icon, size: size * 0.4),
+      ),
+    );
+  }
+
+  Widget _pill(BuildContext context, String text, {bool highlight = false}) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: highlight
+            ? colors.primaryContainer
+            : colors.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: highlight
+              ? colors.onPrimaryContainer
+              : colors.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _curvyCard(BuildContext context, {required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final c = _card;
     final d = _last?.decision;
     final dsp = _last?.dsp;
     final tip = c == null ? '' : DrillService.soundTips[c.targetSound] ?? '';
     return Scaffold(
-      appBar: AppBar(title: const Text('SpeakCards · Español')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: c == null
-            ? Text(_status)
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      backgroundColor: colors.surfaceContainerLow,
+      appBar: AppBar(
+        title: const Text('SpeakCards'),
+        centerTitle: true,
+        backgroundColor: colors.surfaceContainerLow,
+      ),
+      body: c == null
+          ? Center(child: Text(_status))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(c.es, style: Theme.of(context).textTheme.headlineSmall),
-                  Text(c.en, style: Theme.of(context).textTheme.bodyLarge),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Focus: ${c.targetSound} · $tip',
-                    style: Theme.of(context).textTheme.bodySmall,
+                  _pill(
+                    context,
+                    'Card ${(_i % _deck.length) + 1} of ${_deck.length}',
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: _listen,
-                        child: const Text('Listen'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _scoring ? null : _toggleRecord,
-                        child: Text(
-                          _scoring
-                              ? 'Scoring…'
-                              : _recording
-                                  ? 'Stop ($_liveSecs s)'
-                                  : 'Record',
+                  const SizedBox(height: 16),
+                  _curvyCard(
+                    context,
+                    child: Column(
+                      children: [
+                        Text(
+                          c.es,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
+                        const SizedBox(height: 6),
+                        Text(
+                          c.en,
+                          textAlign: TextAlign.center,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                        ),
+                        const SizedBox(height: 14),
+                        _pill(context, '${c.targetSound} · $tip',
+                            highlight: true,),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _roundButton(
+                        size: 60,
+                        icon: Icons.volume_up_rounded,
+                        onPressed: _listen,
+                        background: colors.secondaryContainer,
+                        foreground: colors.onSecondaryContainer,
+                      ),
+                      const SizedBox(width: 20),
+                      _roundButton(
+                        size: 88,
+                        icon: _recording
+                            ? Icons.stop_rounded
+                            : Icons.mic_rounded,
+                        onPressed: _scoring ? null : _toggleRecord,
+                        background: _recording
+                            ? colors.errorContainer
+                            : colors.primary,
+                        foreground: _recording
+                            ? colors.onErrorContainer
+                            : colors.onPrimary,
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
                   if (_recording) ...[
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: SizedBox(
+                        width: 200,
+                        child: LinearProgressIndicator(
+                          value: _level.clamp(0.0, 1.0),
+                          minHeight: 10,
+                          backgroundColor: colors.surfaceContainerHighest,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.mic, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: _level.clamp(0.0, 1.0),
-                              minHeight: 8,
+                    Text(
+                      'Listening… $_liveSecs s — tap stop when done',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                    ),
+                  ] else if (_scoring)
+                    const CircularProgressIndicator()
+                  else if (_last != null && d != null && dsp != null) ...[
+                    _curvyCard(
+                      context,
+                      child: Column(
+                        children: [
+                          Text(
+                            '${dsp.overall}%',
+                            style: Theme.of(context)
+                                .textTheme
+                                .displayMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: colors.primary,
+                                ),
+                          ),
+                          Text(
+                            _scoreLabel(dsp.overall),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _pill(context, 'Flow ${dsp.fluency}'),
+                              _pill(context, 'Full ${dsp.completeness}'),
+                              _pill(context, 'Tone ${dsp.prosody}'),
+                            ],
+                          ),
+                          if (dsp.qualityFlag != 'ok') ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              dsp.qualityFlag == 'too_short'
+                                  ? 'Too short — say the full phrase.'
+                                  : 'Clipped — hold the mic farther.',
+                              style: TextStyle(color: colors.error),
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          Text(
+                            '${d.feedbackEn}\n${d.feedbackEs}',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 20),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () => setState(() => _i++),
+                              style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 16,),
+                              ),
+                              child: const Text('Continue'),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text('${(_level * 100).round()}%'),
-                      ],
-                    ),
-                    const Text(
-                      'Live mic stream — nothing saved to disk.',
-                      style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  if (_scoring)
-                    const LinearProgressIndicator()
-                  else if (_last != null && d != null && dsp != null) ...[
-                    Text(
-                      'Match ${dsp.overall}% · '
-                      'Fluency ${dsp.fluency} · '
-                      'Complete ${dsp.completeness} · '
-                      'Natural ${dsp.prosody}',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    if (dsp.qualityFlag != 'ok')
-                      Text(
-                        dsp.qualityFlag == 'too_short'
-                            ? 'Too short — speak the full phrase.'
-                            : 'Clipped — hold the mic a bit farther.',
-                        style: const TextStyle(color: Colors.orange),
+                          TextButton(
+                            onPressed: () {},
+                            child: Text('Practice "${d.target}"'),
+                          ),
+                        ],
                       ),
-                    Text(
-                      dsp.distance >= 0
-                          ? 'Matched reference (DTW ${dsp.distance.toStringAsFixed(2)}, this device).'
-                          : 'No reference WAV bundled — scored live from your audio (this device).',
-                      style: const TextStyle(fontStyle: FontStyle.italic),
-                    ),
-                    Text('${d.feedbackEn}\n${d.feedbackEs}'),
-                    Text('Next: ${d.nextAction} → ${d.target} '
-                        '(confidence ${d.confidence}/4, via ${_last!.path.name})'),
-                    Row(
-                      children: [
-                        TextButton(
-                          onPressed: () {},
-                          child: Text('Practice "${d.target}"'),
-                        ),
-                        TextButton(
-                          onPressed: () => setState(() => _i++),
-                          child: const Text('Continue'),
-                        ),
-                      ],
                     ),
                   ] else
-                    Text(_status),
+                    Text(
+                      _status,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                    ),
                 ],
               ),
-      ),
+            ),
     );
   }
 }

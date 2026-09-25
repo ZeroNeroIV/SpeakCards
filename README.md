@@ -1,11 +1,7 @@
-# SpeakCards — Spanish for English speakers · LAYA-only · 100% on-device
+# SpeakCards — offline Spanish pronunciation flashcards
 
-Flutter + SQLite voice flashcards. One AI (LAYA), no server, no cloud.
-
-## Status: live mic scoring, no mocks, no WAV files
-
-Live PCM stream → on-device DSP → LAYA → SRS. Every push builds
-`app-release.apk` via GitHub Actions and publishes it as the `LATEST` release.
+Flutter voice flashcards with on-device scoring. No server, no cloud,
+no account.
 
 ## Setup
 
@@ -18,8 +14,16 @@ flutter test
 flutter run
 ```
 
-Record reference WAVs (human speaker, 16kHz mono) into `assets/audio/es/`
-matching `audio_path` in `assets/content/cards_es_en.json`.
+## Reference audio
+
+`assets/audio/es/` ships a native reference recording for every card
+(16kHz mono WAV, Latin American Spanish voice). The app compares your
+attempt against the reference on-device. To regenerate them:
+
+```powershell
+pip install edge-tts
+python tool/gen_reference_audio.py
+```
 
 ## Models (download once on WiFi, stored on-device)
 
