@@ -40,15 +40,44 @@ class AudioPrep {
     if (e - s < sampleRate ~/ 2) return x; // keep all if <0.5s voiced
     return Float32List.fromList(x.sublist(s, e));
   }
+
+  /// RMS-normalizes to [target] so mic gain vs TTS volume never
+  /// dominates the comparison. Returns the original when near-silent.
+  static Float32List normalizeRms(Float32List x, {double target = 0.1}) {
+    var sum = 0.0;
+    for (final s in x) {
+      sum += s * s;
+    }
+    final rms = math.sqrt(sum / x.length);
+    if (rms < 1e-6) return x;
+    final g = target / rms;
+    final out = Float32List(x.length);
+    for (var i = 0; i < x.length; i++) {
+      out[i] = (x[i] * g).clamp(-1.0, 1.0).toDouble();
+    }
+    return out;
+  }
+
+  static Uint8List floatToPcm16(Float32List x) {
+    final out = Uint8List(x.length * 2);
+    final bd = ByteData.sublistView(out);
+    for (var i = 0; i < x.length; i++) {
+      bd.setInt16(i * 2, (x[i].clamp(-1.0, 1.0) * 32767).round(), Endian.little);
+    }
+    return out;
+  }
 }
 
 /// Result of the classical (non-AI) scorer.
-/// [distance] is the DTW cost vs the bundled reference, or -1 when no
-/// reference WAV was available (then [overall] is computed from the
-/// learner audio alone: fluency/prosody/completeness).
+/// [distance] is the DTW cost vs the on-device native reference, or -1
+/// when no reference could be synthesized (then [overall] is computed
+/// from the learner audio + dictionary timing alone).
+/// [rateRatio] is learnerSecs / referenceSecs (>1.2 slow, <0.8 fast),
+/// or -1 without a reference.
 class DspResult {
   final int overall, fluency, completeness, prosody;
   final double distance;
+  final double rateRatio;
   final String qualityFlag; // ok | too_short | clipped | noisy
   const DspResult({
     required this.overall,
@@ -56,6 +85,7 @@ class DspResult {
     required this.completeness,
     required this.prosody,
     required this.distance,
+    required this.rateRatio,
     required this.qualityFlag,
   });
 
@@ -65,6 +95,7 @@ class DspResult {
         'completeness': completeness,
         'prosody': prosody,
         'distance': distance,
+        'rate_ratio': rateRatio,
         'quality_flag': qualityFlag,
       };
 }
@@ -151,8 +182,8 @@ class DspScorer {
     return (words * 0.7).clamp(1.0, 6.0);
   }
 
-  /// REAL scoring without a reference WAV (bundle currently ships no
-  /// assets/audio/es/*.wav). Measures the actual learner PCM:
+  /// REAL scoring without a synthesized reference (e.g. no Spanish voice
+  /// installed). Measures the actual learner PCM:
   /// too_short/clipped detection, pause-based fluency, duration-based
   /// completeness, pitch/energy prosody. No mocks, no constants.
   static DspResult scoreNoReference({
@@ -162,7 +193,7 @@ class DspScorer {
     if (learner.length < 8000) {
       return const DspResult(
         overall: 0, fluency: 0, completeness: 0, prosody: 0,
-        distance: -1, qualityFlag: 'too_short',
+        distance: -1, rateRatio: -1, qualityFlag: 'too_short',
       );
     }
     var clipped = 0;
@@ -190,7 +221,7 @@ class DspScorer {
     return DspResult(
       overall: overall, fluency: fluency,
       completeness: completeness, prosody: prosody,
-      distance: -1, qualityFlag: quality,
+      distance: -1, rateRatio: -1, qualityFlag: quality,
     );
   }
 
@@ -204,7 +235,7 @@ class DspScorer {
     if (learner.length < 8000) {
       return const DspResult(
           overall: 0, fluency: 0, completeness: 0, prosody: 0,
-          distance: 1e9, qualityFlag: 'too_short',);
+          distance: 1e9, rateRatio: -1, qualityFlag: 'too_short',);
     }
     var clipped = 0;
     for (final s in learner) {
@@ -213,28 +244,32 @@ class DspScorer {
     final quality =
         clipped > learner.length * 0.01 ? 'clipped' : 'ok';
 
-    final l = AudioPrep.vadTrim(learner);
-    final r = AudioPrep.vadTrim(reference);
+    // Loudness-normalize first: mic gain vs TTS volume must not fake
+    // similarity. Clipping was already detected on the raw signal above.
+    final learnerN = AudioPrep.normalizeRms(learner);
+    final l = AudioPrep.vadTrim(learnerN);
+    final r = AudioPrep.vadTrim(AudioPrep.normalizeRms(reference));
     final dist = dtw(mfcc(l), mfcc(r));
 
     // distance ~0.5 native-like … ~8+ far. Map to 0..100.
     final overall = _clamp01(1.0 - (dist / 8.0).clamp(0.0, 1.0));
 
-    final durRatio = (l.length / learner.length).clamp(0.0, 1.0);
-    final pauses = _countPauses(learner);
+    final durRatio = (l.length / learnerN.length).clamp(0.0, 1.0);
+    final pauses = _countPauses(learnerN);
     final fluency = _clamp01((durRatio * 0.6 + (1 - (pauses / 6).clamp(0.0, 1.0)) * 0.4));
 
     final refSecs = reference.length / 16000;
     final gotSecs = learner.length / 16000;
     final completeness =
         _clamp01(1.0 - ((gotSecs - refSecs).abs() / (refSecs + expectedSecs)));
+    final rateRatio = refSecs > 0 ? gotSecs / refSecs : -1.0;
 
     final prosody = _clamp01(1.0 - (_pitchVar(l) + _energyVar(l)) / 2.0);
 
     return DspResult(
       overall: overall, fluency: fluency,
       completeness: completeness, prosody: prosody,
-      distance: dist, qualityFlag: quality,
+      distance: dist, rateRatio: rateRatio, qualityFlag: quality,
     );
   }
 

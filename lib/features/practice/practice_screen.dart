@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
@@ -96,9 +97,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
         }
       });
       await _refreshIpa();
+      unawaited(_warmReferences()); // render native refs ahead of time
     } catch (e) {
       if (!mounted) return;
       setState(() => _status = 'Startup failed: $e');
+    }
+  }
+
+  /// Fire-and-forget: synthesize native references for the first due
+  /// cards so scoring rarely waits on TTS. Failures just fall back.
+  Future<void> _warmReferences() async {
+    for (final c in _deck.take(6)) {
+      try {
+        await _voice.getReferencePcm(cardId: c.id, text: c.es);
+      } catch (_) {}
     }
   }
 
@@ -185,14 +197,31 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (c == null) return;
     if (take.pcmBytes.isEmpty) throw StateError('Recording too short');
 
-    // Live PCM straight from RAM + dictionary timing — no audio files.
+    // Live PCM straight from RAM. Reference is the OS native voice
+    // rendered on-device (cached); without it we score from your
+    // audio + dictionary timing alone.
     final learnerPcm = take.pcmFloat;
     final expectedSecs = await _dict.expectedSecs(c.es);
     final ipa = await _dict.transcription(c.es);
-    final dsp = DspScorer.scoreNoReference(
-      learner: learnerPcm,
-      expectedSecs: expectedSecs,
-    );
+    Float32List? refPcm;
+    try {
+      refPcm = await _voice.getReferencePcm(cardId: c.id, text: c.es);
+    } catch (_) {
+      refPcm = null;
+    }
+    final DspResult dsp;
+    if (refPcm != null && refPcm.length >= 8000) {
+      dsp = DspScorer.score(
+        learner: learnerPcm,
+        reference: refPcm,
+        expectedSecs: expectedSecs,
+      );
+    } else {
+      dsp = DspScorer.scoreNoReference(
+        learner: learnerPcm,
+        expectedSecs: expectedSecs,
+      );
+    }
 
     final recent = await _db.recentAttempts(c.id, limit: 3);
     final history = recent.reversed.map((a) => a.overall).toList();
@@ -464,9 +493,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
                             ),
                           ],
                           const SizedBox(height: 8),
-                          const Text(
-                            'Scored live from your audio + dictionary guide.',
-                            style: TextStyle(fontStyle: FontStyle.italic),
+                          Text(
+                            dsp.distance >= 0
+                                ? 'Matched the native voice (this device).'
+                                : 'No native voice on this device — scored from your audio + dictionary.',
+                            style:
+                                const TextStyle(fontStyle: FontStyle.italic),
                           ),
                           const SizedBox(height: 4),
                           Text(

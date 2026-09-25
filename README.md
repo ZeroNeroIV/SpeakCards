@@ -18,8 +18,11 @@ flutter run
 
 No audio files: the app ships `assets/content/es_dict.json` (canonical
 pronunciation + syllables for every word) and speaks references with your
-device's native Spanish voice. Scoring measures your live audio against
-dictionary timing, on-device.
+device's native Spanish voice. For scoring, the native voice renders each
+card on-device (cached per card) and your attempt is compared against it
+with MFCC+DTW after loudness normalization — so mic volume can't fake a
+good score. Without a Spanish voice installed, scoring falls back to your
+audio + dictionary timing.
 
 ## Models (download once on WiFi, stored on-device)
 
