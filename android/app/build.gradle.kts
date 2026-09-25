@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -29,11 +32,34 @@ android {
         versionName = flutter.versionName
     }
 
+    // Release keystore credentials live in android/key.properties (gitignored).
+    // CI restores it from SPEAKCARDS_* secrets; locally it points at
+    // android/speakcards-release.jks. Without it, release falls back to
+    // debug keys so `flutter run` still works.
+    val keyProps = Properties()
+    val keyPropsFile = rootProject.file("key.properties")
+    if (keyPropsFile.exists()) {
+        FileInputStream(keyPropsFile).use { keyProps.load(it) }
+    }
+
+    signingConfigs {
+        create("release") {
+            if (keyPropsFile.exists()) {
+                keyAlias = keyProps["keyAlias"] as String
+                keyPassword = keyProps["keyPassword"] as String
+                storeFile = file(keyProps["storeFile"] as String)
+                storePassword = keyProps["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (keyPropsFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
