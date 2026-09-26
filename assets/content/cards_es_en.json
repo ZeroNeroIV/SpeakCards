@@ -152,5 +152,131 @@
     "en": "The boy has a red balloon.",
     "target_sound": "ny",
     "difficulty": 3
+  },
+  {
+    "id": "w_burro",
+    "es": "burro",
+    "en": "donkey",
+    "target_sound": "rr",
+    "difficulty": 2
+  },
+  {
+    "id": "w_arroz",
+    "es": "arroz",
+    "en": "rice",
+    "target_sound": "rr",
+    "difficulty": 2
+  },
+  {
+    "id": "w_caro",
+    "es": "caro",
+    "en": "expensive",
+    "target_sound": "r",
+    "difficulty": 2
+  },
+  {
+    "id": "w_muro",
+    "es": "muro",
+    "en": "wall",
+    "target_sound": "r",
+    "difficulty": 2
+  },
+  {
+    "id": "w_jamon",
+    "es": "jamón",
+    "en": "ham",
+    "target_sound": "j",
+    "difficulty": 2
+  },
+  {
+    "id": "w_joven",
+    "es": "joven",
+    "en": "young person",
+    "target_sound": "j",
+    "difficulty": 3
+  },
+  {
+    "id": "w_lluvia",
+    "es": "lluvia",
+    "en": "rain",
+    "target_sound": "ll",
+    "difficulty": 2
+  },
+  {
+    "id": "w_calle",
+    "es": "calle",
+    "en": "street",
+    "target_sound": "ll",
+    "difficulty": 2
+  },
+  {
+    "id": "w_ano",
+    "es": "año",
+    "en": "year",
+    "target_sound": "ny",
+    "difficulty": 2
+  },
+  {
+    "id": "w_bano",
+    "es": "baño",
+    "en": "bathroom",
+    "target_sound": "ny",
+    "difficulty": 2
+  },
+  {
+    "id": "w_vaca",
+    "es": "vaca",
+    "en": "cow",
+    "target_sound": "b_v",
+    "difficulty": 1
+  },
+  {
+    "id": "w_bueno",
+    "es": "bueno",
+    "en": "good",
+    "target_sound": "b_v",
+    "difficulty": 1
+  },
+  {
+    "id": "w_dedo",
+    "es": "dedo",
+    "en": "finger",
+    "target_sound": "d",
+    "difficulty": 1
+  },
+  {
+    "id": "w_vida",
+    "es": "vida",
+    "en": "life",
+    "target_sound": "d",
+    "difficulty": 2
+  },
+  {
+    "id": "w_casa",
+    "es": "casa",
+    "en": "house",
+    "target_sound": "vowels",
+    "difficulty": 1
+  },
+  {
+    "id": "w_luna",
+    "es": "luna",
+    "en": "moon",
+    "target_sound": "vowels",
+    "difficulty": 1
+  },
+  {
+    "id": "s_llamas",
+    "es": "¿Cómo te llamas?",
+    "en": "What is your name?",
+    "target_sound": "ll",
+    "difficulty": 2
+  },
+  {
+    "id": "s_casa_grande",
+    "es": "La casa es grande.",
+    "en": "The house is big.",
+    "target_sound": "vowels",
+    "difficulty": 2
   }
 ]

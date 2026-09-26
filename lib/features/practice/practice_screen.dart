@@ -26,7 +26,8 @@ class PracticeScreen extends StatefulWidget {
   State<PracticeScreen> createState() => _PracticeScreenState();
 }
 
-class _PracticeScreenState extends State<PracticeScreen> {
+class _PracticeScreenState extends State<PracticeScreen>
+    with SingleTickerProviderStateMixin {
   final _cards = CardRepository();
   final _rec = RecorderService();
   final _voice = ReferenceVoiceService();
@@ -50,6 +51,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
   String _status = 'Loading…';
   String _ipa = '';
   LayaResult? _last;
+  late final AnimationController _pulse;
 
   @override
   void initState() {
@@ -63,6 +65,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
         });
       },
       onError: (_) {},
+    );
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
     );
     _boot();
   }
@@ -165,6 +171,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (_scoring) return;
     if (_recording) {
       _stopLiveTimer();
+      _pulse.stop();
+      _pulse.reset();
       try {
         HapticFeedback.mediumImpact();
       } catch (_) {}
@@ -198,9 +206,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
       _startLiveTimer();
       try {
         await _rec.start();
+        _pulse.repeat(reverse: true);
       } catch (e) {
         if (!mounted) return;
         _stopLiveTimer();
+        _pulse.stop();
+        _pulse.reset();
         setState(() {
           _recording = false;
           _status = 'Mic failed: $e';
@@ -323,6 +334,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
 
   @override
   void dispose() {
+    _pulse.dispose();
     _levelSub?.cancel();
     _liveTimer?.cancel();
     _rec.dispose();
@@ -383,12 +395,25 @@ class _PracticeScreenState extends State<PracticeScreen> {
     );
   }
 
-  Widget _curvyCard(BuildContext context, {required Widget child}) {
+  Widget _curvyCard(BuildContext context,
+      {required Widget child, Key? key, bool gradient = false,}) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
+      key: key,
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        gradient: gradient
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colors.surfaceContainerHigh,
+                  colors.primaryContainer.withValues(alpha: 0.5),
+                ],
+              )
+            : null,
+        color: gradient ? null : colors.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(28),
       ),
       child: child,
@@ -464,9 +489,20 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
-                  _curvyCard(
-                    context,
-                    child: Column(
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: ScaleTransition(
+                        scale: Tween(begin: 0.96, end: 1.0).animate(anim),
+                        child: child,
+                      ),
+                    ),
+                    child: _curvyCard(
+                      context,
+                      key: ValueKey(c.id),
+                      gradient: true,
+                      child: Column(
                       children: [
                         Text(
                           c.es,
@@ -503,6 +539,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         _pill(context, '${c.targetSound} · $tip',
                             highlight: true,),
                       ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -517,18 +554,40 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         foreground: colors.onSecondaryContainer,
                       ),
                       const SizedBox(width: 20),
-                      _roundButton(
-                        size: 88,
-                        icon: _recording
-                            ? Icons.stop_rounded
-                            : Icons.mic_rounded,
-                        onPressed: _scoring ? null : _toggleRecord,
-                        background: _recording
-                            ? colors.errorContainer
-                            : colors.primary,
-                        foreground: _recording
-                            ? colors.onErrorContainer
-                            : colors.onPrimary,
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          if (_recording)
+                            AnimatedBuilder(
+                              animation: _pulse,
+                              builder: (context, _) => Container(
+                                width: 88 + _pulse.value * 26,
+                                height: 88 + _pulse.value * 26,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: colors.primary.withValues(
+                                      alpha: 0.55 * (1 - _pulse.value),
+                                    ),
+                                    width: 3,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          _roundButton(
+                            size: 88,
+                            icon: _recording
+                                ? Icons.stop_rounded
+                                : Icons.mic_rounded,
+                            onPressed: _scoring ? null : _toggleRecord,
+                            background: _recording
+                                ? colors.errorContainer
+                                : colors.primary,
+                            foreground: _recording
+                                ? colors.onErrorContainer
+                                : colors.onPrimary,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -571,15 +630,19 @@ class _PracticeScreenState extends State<PracticeScreen> {
                       context,
                       child: Column(
                         children: [
-                          Text(
-                            '${dsp.overall}%',
-                            style: Theme.of(context)
-                                .textTheme
-                                .displayMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: colors.primary,
-                                ),
+                          TweenAnimationBuilder<int>(
+                            tween: IntTween(begin: 0, end: dsp.overall),
+                            duration: const Duration(milliseconds: 900),
+                            builder: (context, value, _) => Text(
+                              '$value%',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .displayMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colors.primary,
+                                  ),
+                            ),
                           ),
                           Text(
                             _scoreLabel(dsp.overall),

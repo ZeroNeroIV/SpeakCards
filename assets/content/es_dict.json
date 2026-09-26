@@ -1,1 +1,421 @@
-{"arriba":{"ipa":"aˈri.ba","stress":1,"syllables":["a","rri","ba"]},"beso":{"ipa":"ˈbe.so","stress":0,"syllables":["be","so"]},"cada":{"ipa":"ˈka.da","stress":0,"syllables":["ca","da"]},"carro":{"ipa":"ˈka.ro","stress":0,"syllables":["ca","rro"]},"come":{"ipa":"ˈko.me","stress":0,"syllables":["co","me"]},"dónde":{"ipa":"ˈdon.de","stress":0,"syllables":["dón","de"]},"el":{"ipa":"el","stress":0,"syllables":["el"]},"en":{"ipa":"en","stress":0,"syllables":["en"]},"estación":{"ipa":"es.taˈsjon","stress":2,"syllables":["es","ta","ción"]},"está":{"ipa":"esˈta","stress":1,"syllables":["es","tá"]},"globo":{"ipa":"ˈglo.bo","stress":0,"syllables":["glo","bo"]},"jamás":{"ipa":"xaˈmas","stress":1,"syllables":["ja","más"]},"la":{"ipa":"la","stress":0,"syllables":["la"]},"llama":{"ipa":"ˈʝa.ma","stress":0,"syllables":["lla","ma"]},"mañana":{"ipa":"maˈɲa.na","stress":1,"syllables":["ma","ña","na"]},"mesa":{"ipa":"ˈme.sa","stress":0,"syllables":["me","sa"]},"mi":{"ipa":"mi","stress":0,"syllables":["mi"]},"nada":{"ipa":"ˈna.da","stress":0,"syllables":["na","da"]},"niño":{"ipa":"ˈni.ɲo","stress":0,"syllables":["ni","ño"]},"papa":{"ipa":"ˈpa.pa","stress":0,"syllables":["pa","pa"]},"papá":{"ipa":"paˈpa","stress":1,"syllables":["pa","pá"]},"para":{"ipa":"ˈpa.ɾa","stress":0,"syllables":["pa","ra"]},"patio":{"ipa":"ˈpa.tjo","stress":0,"syllables":["pa","tio"]},"pero":{"ipa":"ˈpe.ɾo","stress":0,"syllables":["pe","ro"]},"perro":{"ipa":"ˈpe.ro","stress":0,"syllables":["pe","rro"]},"rojo":{"ipa":"ˈro.xo","stress":0,"syllables":["ro","jo"]},"tiene":{"ipa":"ˈtje.ne","stress":0,"syllables":["tie","ne"]},"tierra":{"ipa":"ˈtje.ra","stress":0,"syllables":["tie","rra"]},"toro":{"ipa":"ˈto.ɾo","stress":0,"syllables":["to","ro"]},"un":{"ipa":"un","stress":0,"syllables":["un"]},"vaso":{"ipa":"ˈba.so","stress":0,"syllables":["va","so"]},"yo":{"ipa":"ˈʝo","stress":0,"syllables":["yo"]}}
+{
+  "arriba": {
+    "ipa": "aˈri.ba",
+    "stress": 1,
+    "syllables": [
+      "a",
+      "rri",
+      "ba"
+    ]
+  },
+  "beso": {
+    "ipa": "ˈbe.so",
+    "stress": 0,
+    "syllables": [
+      "be",
+      "so"
+    ]
+  },
+  "cada": {
+    "ipa": "ˈka.da",
+    "stress": 0,
+    "syllables": [
+      "ca",
+      "da"
+    ]
+  },
+  "carro": {
+    "ipa": "ˈka.ro",
+    "stress": 0,
+    "syllables": [
+      "ca",
+      "rro"
+    ]
+  },
+  "come": {
+    "ipa": "ˈko.me",
+    "stress": 0,
+    "syllables": [
+      "co",
+      "me"
+    ]
+  },
+  "dónde": {
+    "ipa": "ˈdon.de",
+    "stress": 0,
+    "syllables": [
+      "dón",
+      "de"
+    ]
+  },
+  "el": {
+    "ipa": "el",
+    "stress": 0,
+    "syllables": [
+      "el"
+    ]
+  },
+  "en": {
+    "ipa": "en",
+    "stress": 0,
+    "syllables": [
+      "en"
+    ]
+  },
+  "estación": {
+    "ipa": "es.taˈsjon",
+    "stress": 2,
+    "syllables": [
+      "es",
+      "ta",
+      "ción"
+    ]
+  },
+  "está": {
+    "ipa": "esˈta",
+    "stress": 1,
+    "syllables": [
+      "es",
+      "tá"
+    ]
+  },
+  "globo": {
+    "ipa": "ˈglo.bo",
+    "stress": 0,
+    "syllables": [
+      "glo",
+      "bo"
+    ]
+  },
+  "jamás": {
+    "ipa": "xaˈmas",
+    "stress": 1,
+    "syllables": [
+      "ja",
+      "más"
+    ]
+  },
+  "la": {
+    "ipa": "la",
+    "stress": 0,
+    "syllables": [
+      "la"
+    ]
+  },
+  "llama": {
+    "ipa": "ˈʝa.ma",
+    "stress": 0,
+    "syllables": [
+      "lla",
+      "ma"
+    ]
+  },
+  "mañana": {
+    "ipa": "maˈɲa.na",
+    "stress": 1,
+    "syllables": [
+      "ma",
+      "ña",
+      "na"
+    ]
+  },
+  "mesa": {
+    "ipa": "ˈme.sa",
+    "stress": 0,
+    "syllables": [
+      "me",
+      "sa"
+    ]
+  },
+  "mi": {
+    "ipa": "mi",
+    "stress": 0,
+    "syllables": [
+      "mi"
+    ]
+  },
+  "nada": {
+    "ipa": "ˈna.da",
+    "stress": 0,
+    "syllables": [
+      "na",
+      "da"
+    ]
+  },
+  "niño": {
+    "ipa": "ˈni.ɲo",
+    "stress": 0,
+    "syllables": [
+      "ni",
+      "ño"
+    ]
+  },
+  "papa": {
+    "ipa": "ˈpa.pa",
+    "stress": 0,
+    "syllables": [
+      "pa",
+      "pa"
+    ]
+  },
+  "papá": {
+    "ipa": "paˈpa",
+    "stress": 1,
+    "syllables": [
+      "pa",
+      "pá"
+    ]
+  },
+  "para": {
+    "ipa": "ˈpa.ɾa",
+    "stress": 0,
+    "syllables": [
+      "pa",
+      "ra"
+    ]
+  },
+  "patio": {
+    "ipa": "ˈpa.tjo",
+    "stress": 0,
+    "syllables": [
+      "pa",
+      "tio"
+    ]
+  },
+  "pero": {
+    "ipa": "ˈpe.ɾo",
+    "stress": 0,
+    "syllables": [
+      "pe",
+      "ro"
+    ]
+  },
+  "perro": {
+    "ipa": "ˈpe.ro",
+    "stress": 0,
+    "syllables": [
+      "pe",
+      "rro"
+    ]
+  },
+  "rojo": {
+    "ipa": "ˈro.xo",
+    "stress": 0,
+    "syllables": [
+      "ro",
+      "jo"
+    ]
+  },
+  "tiene": {
+    "ipa": "ˈtje.ne",
+    "stress": 0,
+    "syllables": [
+      "tie",
+      "ne"
+    ]
+  },
+  "tierra": {
+    "ipa": "ˈtje.ra",
+    "stress": 0,
+    "syllables": [
+      "tie",
+      "rra"
+    ]
+  },
+  "toro": {
+    "ipa": "ˈto.ɾo",
+    "stress": 0,
+    "syllables": [
+      "to",
+      "ro"
+    ]
+  },
+  "un": {
+    "ipa": "un",
+    "stress": 0,
+    "syllables": [
+      "un"
+    ]
+  },
+  "vaso": {
+    "ipa": "ˈba.so",
+    "stress": 0,
+    "syllables": [
+      "va",
+      "so"
+    ]
+  },
+  "yo": {
+    "ipa": "ˈʝo",
+    "stress": 0,
+    "syllables": [
+      "yo"
+    ]
+  },
+  "burro": {
+    "ipa": "ˈbu.ro",
+    "syllables": [
+      "bu",
+      "rro"
+    ],
+    "stress": 0
+  },
+  "arroz": {
+    "ipa": "aˈros",
+    "syllables": [
+      "a",
+      "rroz"
+    ],
+    "stress": 1
+  },
+  "caro": {
+    "ipa": "ˈka.ɾo",
+    "syllables": [
+      "ca",
+      "ro"
+    ],
+    "stress": 0
+  },
+  "muro": {
+    "ipa": "ˈmu.ɾo",
+    "syllables": [
+      "mu",
+      "ro"
+    ],
+    "stress": 0
+  },
+  "jamón": {
+    "ipa": "xaˈmon",
+    "syllables": [
+      "ja",
+      "món"
+    ],
+    "stress": 1
+  },
+  "joven": {
+    "ipa": "ˈxo.ven",
+    "syllables": [
+      "jo",
+      "ven"
+    ],
+    "stress": 0
+  },
+  "lluvia": {
+    "ipa": "ˈʝu.bja",
+    "syllables": [
+      "llu",
+      "via"
+    ],
+    "stress": 0
+  },
+  "calle": {
+    "ipa": "ˈka.ʝe",
+    "syllables": [
+      "ca",
+      "lle"
+    ],
+    "stress": 0
+  },
+  "año": {
+    "ipa": "ˈa.ɲo",
+    "syllables": [
+      "a",
+      "ño"
+    ],
+    "stress": 0
+  },
+  "baño": {
+    "ipa": "ˈba.ɲo",
+    "syllables": [
+      "ba",
+      "ño"
+    ],
+    "stress": 0
+  },
+  "vaca": {
+    "ipa": "ˈba.ka",
+    "syllables": [
+      "va",
+      "ca"
+    ],
+    "stress": 0
+  },
+  "bueno": {
+    "ipa": "ˈbwe.no",
+    "syllables": [
+      "bue",
+      "no"
+    ],
+    "stress": 0
+  },
+  "dedo": {
+    "ipa": "ˈde.do",
+    "syllables": [
+      "de",
+      "do"
+    ],
+    "stress": 0
+  },
+  "vida": {
+    "ipa": "ˈbi.da",
+    "syllables": [
+      "vi",
+      "da"
+    ],
+    "stress": 0
+  },
+  "casa": {
+    "ipa": "ˈka.sa",
+    "syllables": [
+      "ca",
+      "sa"
+    ],
+    "stress": 0
+  },
+  "luna": {
+    "ipa": "ˈlu.na",
+    "syllables": [
+      "lu",
+      "na"
+    ],
+    "stress": 0
+  },
+  "cómo": {
+    "ipa": "ˈko.mo",
+    "syllables": [
+      "có",
+      "mo"
+    ],
+    "stress": 0
+  },
+  "te": {
+    "ipa": "te",
+    "syllables": [
+      "te"
+    ],
+    "stress": 0
+  },
+  "llamas": {
+    "ipa": "ˈʝa.mas",
+    "syllables": [
+      "lla",
+      "mas"
+    ],
+    "stress": 0
+  },
+  "es": {
+    "ipa": "es",
+    "syllables": [
+      "es"
+    ],
+    "stress": 0
+  },
+  "grande": {
+    "ipa": "ˈgran.de",
+    "syllables": [
+      "gran",
+      "de"
+    ],
+    "stress": 0
+  }
+}

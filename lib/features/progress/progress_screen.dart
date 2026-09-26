@@ -161,9 +161,19 @@ class _ProgressScreenState extends State<ProgressScreen> {
                                     child: ClipRRect(
                                       borderRadius:
                                           BorderRadius.circular(999),
-                                      child: LinearProgressIndicator(
-                                        value: (s.avg / 100).clamp(0.0, 1.0),
-                                        minHeight: 10,
+                                      child: TweenAnimationBuilder<double>(
+                                        tween: Tween(
+                                          begin: 0,
+                                          end: (s.avg / 100)
+                                              .clamp(0.0, 1.0),
+                                        ),
+                                        duration: const Duration(
+                                            milliseconds: 800,),
+                                        builder: (context, value, _) =>
+                                            LinearProgressIndicator(
+                                          value: value,
+                                          minHeight: 10,
+                                        ),
                                       ),
                                     ),
                                   ),
