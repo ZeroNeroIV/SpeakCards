@@ -43,6 +43,45 @@ class AppDb extends _$AppDb {
         .get();
   }
 
+  /// Newest-first overall scores across all cards of one target sound.
+  Future<List<int>> recentScoresForSound(String sound, {int limit = 5}) async {
+    final ids = await (select(cards)
+          ..where((t) => t.targetSound.equals(sound)))
+        .map((c) => c.id)
+        .get();
+    if (ids.isEmpty) return [];
+    final rows = await (select(attempts)
+          ..where((t) => t.cardId.isIn(ids))
+          ..orderBy([(t) => OrderingTerm.desc(t.ts)])
+          ..limit(limit))
+        .get();
+    return rows.map((a) => a.overall).toList();
+  }
+
+  Future<int> attemptCount() async {
+    final q = selectOnly(attempts)..addColumns([attempts.id.count()]);
+    return (await q.getSingle()).read(attempts.id.count()) ?? 0;
+  }
+
+  Future<double> averageOverall() async {
+    final q = selectOnly(attempts)..addColumns([attempts.overall.avg()]);
+    return (await q.getSingle()).read(attempts.overall.avg()) ?? 0.0;
+  }
+
+  Future<List<SoundStat>> allSoundStats() {
+    return (select(soundStats)..orderBy([(t) => OrderingTerm.asc(t.sound)]))
+        .get();
+  }
+
+  /// Newest-first attempt timestamps (for streak math).
+  Future<List<int>> attemptTimes({int limit = 1000}) {
+    final q = selectOnly(attempts)
+      ..addColumns([attempts.ts])
+      ..orderBy([OrderingTerm.desc(attempts.ts)])
+      ..limit(limit);
+    return q.map((r) => r.read(attempts.ts)!).get();
+  }
+
   Future<void> recordSoundStat(String sound, int overall) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final existing = await (select(soundStats)

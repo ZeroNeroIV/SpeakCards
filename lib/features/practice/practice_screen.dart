@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../data/db.dart';
 import '../cards/card_model.dart';
@@ -34,10 +35,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
   late final AppDb _db;
   late final SrsService _srs;
   List<CardModel> _deck = [];
+  List<CardModel>? _drill;
   int _i = 0;
   bool _recording = false;
   bool _scoring = false;
-  double _level = 0.0;
+  bool _showCoach = false;
+  bool _drillSuggest = false;
+  final List<double> _levels = [];
+  List<int> _lastHistory = [];
   int _liveSecs = 0;
   Timer? _liveTimer;
   DateTime? _liveStart;
@@ -51,7 +56,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
     super.initState();
     _levelSub = _rec.levelStream.listen(
       (v) {
-        if (mounted) setState(() => _level = v);
+        if (!mounted) return;
+        setState(() {
+          _levels.add(v);
+          if (_levels.length > 48) _levels.removeAt(0);
+        });
       },
       onError: (_) {},
     );
@@ -79,8 +88,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
       final dueRows = await _srs.dueNow();
       final dueIds = dueRows.map((r) => r.cardId).toSet();
       final allSrs = await _db.select(_db.srs).get();
+      final done = await _db.attemptCount();
       if (!mounted) return;
       setState(() {
+        _showCoach = done == 0;
         if (all.isEmpty) {
           _deck = [];
           _status = 'No cards bundled.';
@@ -114,7 +125,10 @@ class _PracticeScreenState extends State<PracticeScreen> {
     }
   }
 
-  CardModel? get _card => _deck.isEmpty ? null : _deck[_i % _deck.length];
+  CardModel? get _card {
+    final deck = _drill ?? _deck;
+    return deck.isEmpty ? null : deck[_i % deck.length];
+  }
 
   Future<void> _refreshIpa() async {
     final c = _card;
@@ -151,6 +165,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
     if (_scoring) return;
     if (_recording) {
       _stopLiveTimer();
+      try {
+        HapticFeedback.mediumImpact();
+      } catch (_) {}
       setState(() {
         _recording = false;
         _scoring = true;
@@ -167,7 +184,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
         if (mounted) {
           setState(() {
             _scoring = false;
-            _level = 0.0;
           });
         }
       }
@@ -175,7 +191,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
       setState(() {
         _recording = true;
         _last = null;
-        _level = 0.0;
+        _levels.clear();
+        _drillSuggest = false;
         _status = 'Listening… speak now';
       });
       _startLiveTimer();
@@ -233,6 +250,8 @@ class _PracticeScreenState extends State<PracticeScreen> {
       learnerWav: take.wavBytes,
       dsp: dsp,
       referenceIpa: ipa,
+      soundTip: DrillService.soundTips[c.targetSound],
+      rateRatio: dsp.rateRatio,
     );
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -256,11 +275,50 @@ class _PracticeScreenState extends State<PracticeScreen> {
     await _db.recordSoundStat(c.targetSound, dsp.overall);
 
     if (!mounted) return;
+    final soundScores =
+        await _db.recentScoresForSound(c.targetSound, limit: 5);
+    if (!mounted) return;
     setState(() {
       _last = res;
+      _lastHistory = [...history, dsp.overall];
+      _showCoach = false;
+      _drillSuggest =
+          _drill == null && DrillService().shouldTrigger(soundScores.take(3).toList());
       _status =
           '${res.decision.nextAction} · ${res.path.name} · ${take.duration.inMilliseconds / 1000.0}s live';
     });
+    if (dsp.overall >= 85) {
+      try {
+        HapticFeedback.heavyImpact();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _startDrill() async {
+    final c = _card;
+    if (c == null) return;
+    final same = await _cards.bySound(c.targetSound);
+    if (!mounted || same.isEmpty) return;
+    setState(() {
+      _drill = same.take(4).toList();
+      _i = 0;
+      _last = null;
+      _lastHistory = [];
+      _drillSuggest = false;
+      _status = 'Drill · ${c.targetSound}';
+    });
+    await _refreshIpa();
+  }
+
+  void _exitDrill() {
+    setState(() {
+      _drill = null;
+      _i = 0;
+      _last = null;
+      _lastHistory = [];
+      _status = 'Ready';
+    });
+    _refreshIpa();
   }
 
   @override
@@ -358,10 +416,53 @@ class _PracticeScreenState extends State<PracticeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _pill(
-                    context,
-                    'Card ${(_i % _deck.length) + 1} of ${_deck.length}',
-                  ),
+                  if (_drill != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _pill(
+                          context,
+                          'Drill · ${_drill!.first.targetSound} ×${_drill!.length}',
+                          highlight: true,
+                        ),
+                        TextButton(
+                          onPressed: _exitDrill,
+                          child: const Text('Exit'),
+                        ),
+                      ],
+                    )
+                  else
+                    _pill(
+                      context,
+                      'Card ${(_i % _deck.length) + 1} of ${_deck.length}',
+                    ),
+                  if (_showCoach &&
+                      !_recording &&
+                      !_scoring &&
+                      _last == null) ...[
+                    const SizedBox(height: 12),
+                    _curvyCard(
+                      context,
+                      child: Column(
+                        children: [
+                          Text(
+                            'How it works',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            '1 · Listen to the native voice\n'
+                            '2 · Record yourself\n'
+                            '3 · Get scored on-device',
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   _curvyCard(
                     context,
@@ -433,15 +534,27 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   ),
                   const SizedBox(height: 16),
                   if (_recording) ...[
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: SizedBox(
-                        width: 200,
-                        child: LinearProgressIndicator(
-                          value: _level.clamp(0.0, 1.0),
-                          minHeight: 10,
-                          backgroundColor: colors.surfaceContainerHighest,
-                        ),
+                    SizedBox(
+                      height: 44,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (final v in _levels)
+                            Container(
+                              width: 4,
+                              height: 6 + v.clamp(0.0, 1.0) * 38,
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 1.5,),
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(
+                                  alpha: 0.35 +
+                                      v.clamp(0.0, 1.0) * 0.65,
+                                ),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -483,6 +596,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
                               _pill(context, 'Tone ${dsp.prosody}'),
                             ],
                           ),
+                          if (_lastHistory.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Tries: ${_lastHistory.join(' → ')}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
                           if (dsp.qualityFlag != 'ok') ...[
                             const SizedBox(height: 8),
                             Text(
@@ -524,12 +649,51 @@ class _PracticeScreenState extends State<PracticeScreen> {
                             ),
                           ),
                           TextButton(
-                            onPressed: () {},
-                            child: Text('Practice "${d.target}"'),
+                            onPressed: _startDrill,
+                            child: Text('Drill "${c.targetSound}" ×4'),
                           ),
                         ],
                       ),
                     ),
+                    if (_drillSuggest && _drill == null) ...[
+                      const SizedBox(height: 12),
+                      _curvyCard(
+                        context,
+                        child: Column(
+                          children: [
+                            Text(
+                              'This sound keeps tripping you — drill it?',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: _startDrill,
+                                  style: ElevatedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(999),
+                                    ),
+                                  ),
+                                  child: const Text('Start drill'),
+                                ),
+                                TextButton(
+                                  onPressed: () => setState(
+                                      () => _drillSuggest = false,),
+                                  child: const Text('Not now'),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ] else
                     Text(
                       _status,

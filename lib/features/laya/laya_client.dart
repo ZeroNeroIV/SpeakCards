@@ -46,6 +46,8 @@ class LayaClient {
     DspResult? dsp,
     int? dspOverall,
     String? referenceIpa, // canonical transcription from bundled dictionary
+    String? soundTip, // one-liner mouth tip for the drilled sound
+    double rateRatio = -1, // learnerSecs / refSecs, -1 when unknown
   }) async {
     if (learnerWav != null && audioModelReady) {
       try {
@@ -81,10 +83,13 @@ class LayaClient {
         );
       } catch (_) {/* fall through */}
     }
-    // No invented default: without any measurement overall is 0 (repeat).
     final overall = dsp?.overall ?? dspOverall ?? 0;
+    final rate = dsp?.rateRatio ?? rateRatio;
     return LayaResult(
-        _rule(expected, targetSound, history, overall), LayaPath.rule, dsp,);
+        _rule(expected, targetSound, history, overall,
+            tip: soundTip, rate: rate,),
+        LayaPath.rule,
+        dsp,);
   }
 
   Future<LayaDecision> _askAudio(
@@ -137,7 +142,13 @@ class LayaClient {
   }
 
   LayaDecision _rule(
-      String expected, String targetSound, List<int> history, int overall,) {
+    String expected,
+    String targetSound,
+    List<int> history,
+    int overall, {
+    String? tip,
+    double rate = -1,
+  }) {
     final fails = history.where((s) => s < 70).length;
     final action = overall >= 85
         ? 'advance'
@@ -148,12 +159,22 @@ class LayaClient {
                 : overall < 80
                     ? 'repeat_sentence'
                     : 'schedule_review';
+    final en = StringBuffer('Match $overall% vs the native voice.');
+    final es = StringBuffer('Similitud $overall% con la voz nativa.');
+    if (rate > 1.25) {
+      en.write(' A touch faster next time.');
+      es.write(' Un poco más rápido la próxima vez.');
+    } else if (rate > 0 && rate < 0.8) {
+      en.write(' Slow down just a little.');
+      es.write(' Más despacio.');
+    }
+    if (tip != null && tip.isNotEmpty) en.write(' $tip');
     return LayaDecision(
       nextAction: action,
       target: expected,
       confidence: 2,
-      feedbackEn: 'Match $overall% vs reference. One more slow try.',
-      feedbackEs: 'Similitud $overall%. Una vez más, despacio.',
+      feedbackEn: en.toString(),
+      feedbackEs: es.toString(),
     );
   }
 }
