@@ -10,12 +10,16 @@ class _ProgressData {
   final int streak;
   final int due;
   final List<SoundStat> sounds;
+  final List<int> weekly;
+  final List<String> letters;
   const _ProgressData({
     required this.attempts,
     required this.average,
     required this.streak,
     required this.due,
     required this.sounds,
+    required this.weekly,
+    required this.letters,
   });
 }
 
@@ -50,6 +54,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
       streak: StatsService.calcStreak(times),
       due: due,
       sounds: sounds,
+      weekly: StatsService.weeklyCounts(times),
+      letters: StatsService.weeklyLetters(),
     );
   }
 
@@ -192,6 +198,76 @@ class _ProgressScreenState extends State<ProgressScreen> {
                             ],
                           ],
                         ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('This week',
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 110,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            for (var i = 0; i < 7; i++)
+                              Expanded(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    Expanded(
+                                      child: Align(
+                                        alignment: Alignment.bottomCenter,
+                                        child: FractionallySizedBox(
+                                          widthFactor: 0.55,
+                                          heightFactor: d.weekly[i] == 0
+                                              ? 0.04
+                                              : (d.weekly[i] /
+                                                      d.weekly.reduce(
+                                                          (a, b) => a > b
+                                                              ? a
+                                                              : b,))
+                                                  .clamp(0.08, 1.0),
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: i == 6
+                                                  ? colors.primary
+                                                  : colors.primary.withValues(
+                                                      alpha: 0.45,),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(d.letters[i],
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color:
+                                                  colors.onSurfaceVariant,
+                                            ),),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Container(

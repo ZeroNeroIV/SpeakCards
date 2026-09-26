@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:drift/drift.dart' as drift;
@@ -52,6 +53,12 @@ class _PracticeScreenState extends State<PracticeScreen>
   String _ipa = '';
   LayaResult? _last;
   late final AnimationController _pulse;
+  static const int dailyGoal = 10;
+  static const double slowRate = 0.25;
+  String? _filter;
+  int _best = 0;
+  int _today = 0;
+  bool _isNewBest = false;
 
   @override
   void initState() {
@@ -95,9 +102,11 @@ class _PracticeScreenState extends State<PracticeScreen>
       final dueIds = dueRows.map((r) => r.cardId).toSet();
       final allSrs = await _db.select(_db.srs).get();
       final done = await _db.attemptCount();
+      final today = await _db.todayCount();
       if (!mounted) return;
       setState(() {
         _showCoach = done == 0;
+        _today = today;
         if (all.isEmpty) {
           _deck = [];
           _status = 'No cards bundled.';
@@ -113,7 +122,7 @@ class _PracticeScreenState extends State<PracticeScreen>
           _status = 'All caught up — reviewing all';
         }
       });
-      await _refreshIpa();
+      await _refreshCard();
       unawaited(_warmReferences()); // render native refs ahead of time
     } catch (e) {
       if (!mounted) return;
@@ -131,23 +140,35 @@ class _PracticeScreenState extends State<PracticeScreen>
     }
   }
 
+  List<CardModel> get _view {
+    if (_drill != null) return _drill!;
+    if (_filter == null) return _deck;
+    return _deck.where((c) => c.targetSound == _filter).toList();
+  }
+
   CardModel? get _card {
-    final deck = _drill ?? _deck;
+    final deck = _view;
     return deck.isEmpty ? null : deck[_i % deck.length];
   }
 
-  Future<void> _refreshIpa() async {
+  Future<void> _refreshCard() async {
     final c = _card;
     if (c == null) return;
     final ipa = await _dict.transcription(c.es);
+    final best = await _db.bestForCard(c.id);
     if (!mounted) return;
-    setState(() => _ipa = ipa);
+    setState(() {
+      _ipa = ipa;
+      _best = best;
+      _isNewBest = false;
+    });
   }
 
-  Future<void> _listen() async {
+  Future<void> _listen(
+      {double rate = ReferenceVoiceService.listenRate,}) async {
     final c = _card;
     if (c == null) return;
-    await _voice.speak(c.es);
+    await _voice.speak(c.es, rate: rate);
   }
 
   void _startLiveTimer() {
@@ -288,11 +309,15 @@ class _PracticeScreenState extends State<PracticeScreen>
     if (!mounted) return;
     final soundScores =
         await _db.recentScoresForSound(c.targetSound, limit: 5);
+    final today = await _db.todayCount();
     if (!mounted) return;
     setState(() {
       _last = res;
       _lastHistory = [...history, dsp.overall];
       _showCoach = false;
+      _isNewBest =
+          history.isNotEmpty && dsp.overall > history.reduce(math.max);
+      _today = today;
       _drillSuggest =
           _drill == null && DrillService().shouldTrigger(soundScores.take(3).toList());
       _status =
@@ -318,7 +343,7 @@ class _PracticeScreenState extends State<PracticeScreen>
       _drillSuggest = false;
       _status = 'Drill · ${c.targetSound}';
     });
-    await _refreshIpa();
+    await _refreshCard();
   }
 
   void _exitDrill() {
@@ -329,7 +354,24 @@ class _PracticeScreenState extends State<PracticeScreen>
       _lastHistory = [];
       _status = 'Ready';
     });
-    _refreshIpa();
+    _refreshCard();
+  }
+
+  void _selectFilter(String? sound) {
+    setState(() {
+      _filter = sound;
+      _i = 0;
+      _last = null;
+      _lastHistory = [];
+      _isNewBest = false;
+    });
+    _refreshCard();
+  }
+
+  void _retry() {
+    setState(() {
+      _last = null;
+    });
   }
 
   @override
@@ -441,26 +483,71 @@ class _PracticeScreenState extends State<PracticeScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (_drill != null)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (_drill != null) ...[
                         _pill(
                           context,
                           'Drill · ${_drill!.first.targetSound} ×${_drill!.length}',
                           highlight: true,
                         ),
-                        TextButton(
-                          onPressed: _exitDrill,
-                          child: const Text('Exit'),
+                        GestureDetector(
+                          onTap: _exitDrill,
+                          child: _pill(context, 'Exit'),
                         ),
-                      ],
-                    )
-                  else
-                    _pill(
-                      context,
-                      'Card ${(_i % _deck.length) + 1} of ${_deck.length}',
+                      ] else
+                        _pill(
+                          context,
+                          'Card ${(_i % _view.length) + 1} of ${_view.length}',
+                        ),
+                      _pill(
+                        context,
+                        _today >= dailyGoal
+                            ? 'Today $_today · goal hit'
+                            : 'Today $_today/$dailyGoal',
+                        highlight: _today >= dailyGoal,
+                      ),
+                    ],
+                  ),
+                  if (_drill == null) ...[
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final s in [
+                            'All',
+                            'rr',
+                            'r',
+                            'j',
+                            'll',
+                            'ny',
+                            'b_v',
+                            'd',
+                            'vowels',
+                            'stress',
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: GestureDetector(
+                                onTap: () => _selectFilter(
+                                    s == 'All' ? null : s,),
+                                child: _pill(
+                                  context,
+                                  s,
+                                  highlight:
+                                      (_filter == null && s == 'All') ||
+                                          _filter == s,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
+                  ],
                   if (_showCoach &&
                       !_recording &&
                       !_scoring &&
@@ -538,6 +625,25 @@ class _PracticeScreenState extends State<PracticeScreen>
                         const SizedBox(height: 14),
                         _pill(context, '${c.targetSound} · $tip',
                             highlight: true,),
+                        if (_best > 0) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _isNewBest
+                                ? 'Personal best $_best · new record!'
+                                : 'Personal best $_best',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: _isNewBest
+                                      ? colors.primary
+                                      : colors.onSurfaceVariant,
+                                  fontWeight: _isNewBest
+                                      ? FontWeight.bold
+                                      : null,
+                                ),
+                          ),
+                        ],
                       ],
                       ),
                     ),
@@ -553,7 +659,15 @@ class _PracticeScreenState extends State<PracticeScreen>
                         background: colors.secondaryContainer,
                         foreground: colors.onSecondaryContainer,
                       ),
-                      const SizedBox(width: 20),
+                      const SizedBox(width: 12),
+                      _roundButton(
+                        size: 60,
+                        icon: Icons.slow_motion_video_rounded,
+                        onPressed: () => _listen(rate: slowRate),
+                        background: colors.secondaryContainer,
+                        foreground: colors.onSecondaryContainer,
+                      ),
+                      const SizedBox(width: 12),
                       Stack(
                         alignment: Alignment.center,
                         children: [
@@ -699,7 +813,7 @@ class _PracticeScreenState extends State<PracticeScreen>
                             child: ElevatedButton(
                               onPressed: () {
                                 setState(() => _i++);
-                                _refreshIpa();
+                                _refreshCard();
                               },
                               style: ElevatedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
@@ -711,9 +825,19 @@ class _PracticeScreenState extends State<PracticeScreen>
                               child: const Text('Continue'),
                             ),
                           ),
-                          TextButton(
-                            onPressed: _startDrill,
-                            child: Text('Drill "${c.targetSound}" ×4'),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              TextButton(
+                                onPressed: _retry,
+                                child: const Text('Retry'),
+                              ),
+                              TextButton(
+                                onPressed: _startDrill,
+                                child:
+                                    Text('Drill "${c.targetSound}" ×4'),
+                              ),
+                            ],
                           ),
                         ],
                       ),

@@ -37,4 +37,21 @@ void main() {
     expect(StatsService.masteryLabel(55), 'Needs work');
     expect(StatsService.masteryLabel(20), 'Starting out');
   });
+
+  test('weekly counts bucket last 7 days oldest-first', () {
+    final now = DateTime.now();
+    final counts = StatsService.weeklyCounts(
+      [daysAgo(0, now: now), daysAgo(0, now: now), daysAgo(3, now: now)],
+      now: now,
+    );
+    expect(counts.length, 7);
+    expect(counts[6], 2); // today
+    expect(counts[3], 1); // 3 days ago
+    expect(counts.reduce((a, b) => a + b), 3);
+    expect(
+      StatsService.weeklyCounts([daysAgo(9, now: now)], now: now),
+      List.filled(7, 0),
+    );
+    expect(StatsService.weeklyLetters(now: now).length, 7);
+  });
 }

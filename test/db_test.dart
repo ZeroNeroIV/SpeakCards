@@ -58,4 +58,19 @@ void main() {
     expect(await db.averageOverall(), 70.0);
     expect(await db.attemptTimes(), [3000, 1000]);
   });
+
+  test('best per card and today count', () async {
+    final db = memoryDb();
+    addTearDown(db.close);
+    await seedCard(db, 'w_perro', 'rr');
+    expect(await db.bestForCard('w_perro'), 0);
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day);
+    await log(db, 'w_perro', 60,
+        midnight.subtract(const Duration(hours: 1)).millisecondsSinceEpoch,);
+    await log(db, 'w_perro', 80, midnight.millisecondsSinceEpoch + 1000);
+    expect(await db.bestForCard('w_perro'), 80);
+    expect(await db.bestForCard('w_carro'), 0);
+    expect(await db.todayCount(now: now), 1);
+  });
 }

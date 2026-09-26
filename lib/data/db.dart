@@ -82,6 +82,23 @@ class AppDb extends _$AppDb {
     return q.map((r) => r.read(attempts.ts)!).get();
   }
 
+  Future<int> bestForCard(String cardId) async {
+    final q = selectOnly(attempts)
+      ..addColumns([attempts.overall.max()])
+      ..where(attempts.cardId.equals(cardId));
+    return (await q.getSingle()).read(attempts.overall.max()) ?? 0;
+  }
+
+  Future<int> todayCount({DateTime? now}) async {
+    final day = now ?? DateTime.now();
+    final start =
+        DateTime(day.year, day.month, day.day).millisecondsSinceEpoch;
+    final q = selectOnly(attempts)
+      ..addColumns([attempts.id.count()])
+      ..where(attempts.ts.isBiggerOrEqualValue(start));
+    return (await q.getSingle()).read(attempts.id.count()) ?? 0;
+  }
+
   Future<void> recordSoundStat(String sound, int overall) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final existing = await (select(soundStats)

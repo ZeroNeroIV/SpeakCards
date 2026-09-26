@@ -46,10 +46,10 @@ class ReferenceVoiceService {
     }
   }
 
-  Future<void> speak(String text) async {
+  Future<void> speak(String text, {double rate = listenRate}) async {
     if (!_ready) await init();
     try {
-      await _tts.setSpeechRate(listenRate);
+      await _tts.setSpeechRate(rate);
       await _tts.stop();
       await _tts.speak(text);
     } catch (_) {}
